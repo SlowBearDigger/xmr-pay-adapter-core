@@ -1,0 +1,23 @@
+{
+    "name": "slowbeardigger/xmr-pay-adapter-core",
+    "description": "Platform-agnostic core for building Monero payment adapters on the xmr-pay PHP engine. Per-order subaddress, fiat to XMR, monero: URI, and a reusable poll-based settlement loop over a storage contract. The shared layer behind the HikaShop, VirtueMart and J2Store gateways.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["monero", "xmr", "payments", "non-custodial", "view-key", "payment-gateway", "joomla", "adapter"],
+    "homepage": "https://github.com/SlowBearDigger/xmr-pay-adapter-core",
+    "authors": [
+        { "name": "SlowBearDigger" }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-gmp": "*",
+        "ext-bcmath": "*",
+        "slowbeardigger/xmr-pay": "*"
+    },
+    "autoload": {
+        "psr-4": { "XmrPay\\Adapter\\": "src/" }
+    },
+    "scripts": {
+        "test": "for t in gateway settler; do echo \"-- $t --\"; php tests/$t.test.php || exit 1; done"
+    }
+}
