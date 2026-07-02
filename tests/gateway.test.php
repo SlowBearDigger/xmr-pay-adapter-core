@@ -73,4 +73,12 @@ ok('summarizeMatches: matured (tip 1010, conf 10 >= 5) settles', !empty($g->summ
 ok('summarizeMatches: young (tip 1003, conf 3 < 5) does not settle', empty($g->summarizeMatches($one, '0.05', 1003, 5)['paid']));
 ok('summarizeMatches: short payment does not settle', empty($g->summarizeMatches($one, '0.06', 1010, 5)['paid']));
 
+// ---- partialFeedback: the buyer-facing "you sent X, send Y more" figures ----
+ok('partialFeedback: nothing received -> null (plain waiting state)', Gateway::partialFeedback('0.5', '0') === null);
+ok('partialFeedback: empty received -> null', Gateway::partialFeedback('0.5', '') === null);
+$pf = Gateway::partialFeedback('0.79', '100000000000');   // owed 0.79, got 0.1
+ok('partialFeedback: underpayment -> received + shortfall in XMR', $pf !== null && $pf['received'] === '0.1' && $pf['shortfall'] === '0.69', json_encode($pf));
+ok('partialFeedback: exact amount -> null (settles, not partial)', Gateway::partialFeedback('0.1', '100000000000') === null);
+ok('partialFeedback: overpayment -> null (settles, not partial)', Gateway::partialFeedback('0.05', '100000000000') === null);
+
 done_();
