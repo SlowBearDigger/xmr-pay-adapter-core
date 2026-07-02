@@ -11,7 +11,9 @@
  * the body so they run with the DOM nodes already present.
  */
 
-defined('_JEXEC') or die('Restricted access');
+// Joomla defines _JEXEC on every bootstrapped request; non-Joomla hosts (WHMCS, WooCommerce)
+// define XMRPAY_HOST themselves before including this view. Either satisfies the guard.
+(defined('_JEXEC') || defined('XMRPAY_HOST')) or die('Restricted access');
 
 $brandUrl  = 'https://xmrpay.shop';
 $githubUrl = 'https://github.com/SlowBearDigger';
