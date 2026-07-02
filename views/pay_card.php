@@ -159,6 +159,14 @@ $locked    = ((string) $xmr !== '');   // was the price actually locked? if not,
           setTimeout(function(){ if(ret){window.location=ret;}else{window.location.reload();} },1600);
           return;
         }
+        // a partial payment: some funds arrived but less than owed. tell the buyer exactly how much
+        // more to send (to the SAME address — the engine sums payments to the subaddress). an adapter
+        // that doesn't report received/shortfall simply never hits this branch.
+        if(d&&d.status==='partial'&&d.received){
+          warns=0;
+          set('warn','Received '+d.received+' XMR&nbsp;— please send '+d.shortfall+' XMR more to the same address.');
+          return;
+        }
         // a scan/node problem returns HTTP 200 with a status — surface it instead of waiting forever.
         if(d&&(d.status==='node-error'||d.status==='crypto-missing'||d.status==='error')){
           if(++warns>=2){ set('warn', d.status==='crypto-missing'
