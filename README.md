@@ -25,7 +25,10 @@ use XmrPay\Adapter\Settler;
 
 $g = new Gateway([
     'address' => $merchantAddress, 'view_key' => $viewKey,   // view key is the only secret
-    'nodes' => 'https://node-a:18081,https://node-b:18081',   // two+ nodes for real revenue
+    'nodes' => [
+        ['url' => 'https://node-a:18081', 'auth' => 'digest', 'username' => $nodeUser, 'password' => $nodePassword],
+        ['url' => 'https://node-b:18081', 'auth' => 'none'],
+    ],
     'network' => 'mainnet', 'min_confirmations' => 10,
 ]);
 
@@ -40,6 +43,11 @@ $report = (new Settler($g, new MyCartStore(), ['min_confirmations' => 10]))->run
 
 `MyCartStore` implements `OrderStore` — `loadPending`, `saveProgress`, `isSettled`, `markPaid` —
 against the cart's tables. That class plus a checkout screen is the whole adapter.
+
+`nodes` also accepts the legacy comma-separated URL string. Structured rows support `none`,
+`basic`, and `digest` authentication. Authenticated plain HTTP is blocked unless that row sets
+`allow_insecure_http` to `true`; use that opt-in only for a trusted private network. `nodeConfig()`
+returns public URL/auth metadata for diagnostics and never returns usernames or passwords.
 
 ## Tests
 

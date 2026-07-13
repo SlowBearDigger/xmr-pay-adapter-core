@@ -19,6 +19,7 @@ foreach ([
     'third-party/monero/Keccak.php',
     'third-party/monero/ed25519.php',
     'third-party/monero/Cryptonote.php',
+    'src/NodeConfig.php',
     'src/Util.php',
     'src/Scanner.php',
 ] as $f) {

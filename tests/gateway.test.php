@@ -12,6 +12,7 @@ $cfg = ['address' => '4test', 'view_key' => '0', 'network' => 'stagenet', 'nodes
 
 // ---- order -> subaddress index (0 reserved for the primary address) ----
 $g = (new Gateway($cfg))->setScanner(new FakeScanner(0));
+ok('legacy node URL remains available as public metadata', $g->nodeConfig()[0]['url'] === 'http://x:38089' && $g->nodeConfig()[0]['auth'] === 'none');
 ok('indexForOrder: 1 -> 1', $g->indexForOrder(1) === 1);
 ok('indexForOrder: 42 -> 42', $g->indexForOrder(42) === 42);
 $gOff = (new Gateway($cfg + ['index_offset' => 1000]))->setScanner(new FakeScanner(0));

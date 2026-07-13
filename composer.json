@@ -18,6 +18,6 @@
         "psr-4": { "XmrPay\\Adapter\\": "src/" }
     },
     "scripts": {
-        "test": "for t in gateway settler; do echo \"-- $t --\"; php tests/$t.test.php || exit 1; done"
+        "test": "for t in gateway node-pass-through settler; do echo \"-- $t --\"; php tests/$t.test.php || exit 1; done"
     }
 }
