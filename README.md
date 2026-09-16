@@ -65,5 +65,5 @@ checkout if it is not the sibling `../xmr-pay-php`.
 
 - **View key only.** Never accept or store a spend key.
 - **Never log or expose the view key.**
-- **Two or more nodes** for real revenue, so a lagging or lying node can only delay, never confirm early.
+- **Two or more independent nodes** for real revenue. Settlement requires every configured node to answer and agree on each transaction and its block height. If a node is unavailable or disagrees, confirmation pauses until the nodes agree.
 - **Stagenet first.** Release goods only after the engine confirms a real on-chain payment.
