@@ -50,6 +50,15 @@ $threwF = false;
 try { $g->xmrAmount(10.0, 'USD', Gateway::rateFetcher(['rate_source' => 'fixed', 'fixed_rate' => '0'])); } catch (\RuntimeException $e) { $threwF = true; }
 ok('misconfigured fixed rate (0) fails closed — throws, never a wrong amount', $threwF);
 ok('rateFetcher(custom) returns a callable', is_callable(Gateway::rateFetcher(['rate_source' => 'custom', 'rate_url' => 'https://x/{currency}'])));
+$rateTarget = new ReflectionMethod(Gateway::class, 'publicRateTarget');
+if (PHP_VERSION_ID < 80100) $rateTarget->setAccessible(true);
+$blocked = ['http://8.8.8.8/rate', 'https://127.0.0.1/rate', 'https://169.254.169.254/rate',
+    'https://100.64.0.1/rate', 'https://198.18.0.1/rate', 'https://user@8.8.8.8/rate',
+    'https://8.8.8.8/rate#fragment'];
+ok('custom rate cannot target local, reserved, or credentialed URLs',
+    count(array_filter($blocked, function ($url) use ($rateTarget) { return $rateTarget->invoke(null, $url) !== null; })) === 0);
+ok('public HTTPS rate target resolves to a pinned address',
+    $rateTarget->invoke(null, 'https://8.8.8.8/rate') === ['8.8.8.8', 443, '8.8.8.8']);
 
 // ---- poll token (storage-free, HMAC over order id keyed on the view key) ----
 $tk = Gateway::orderToken(42, 'viewkeyA');

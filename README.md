@@ -49,6 +49,9 @@ against the cart's tables. That class plus a checkout screen is the whole adapte
 `allow_insecure_http` to `true`; use that opt-in only for a trusted private network. `nodeConfig()`
 returns public URL/auth metadata for diagnostics and never returns usernames or passwords.
 
+Custom price feeds must use a public HTTPS endpoint with a public IPv4 address. The adapter rejects
+private or reserved destinations and redirects so price fetching cannot reach services on the host.
+
 ## Tests
 
 Pure PHP, no Composer, no network — a `FakeScanner` stands in for the chain so the real engine logic
