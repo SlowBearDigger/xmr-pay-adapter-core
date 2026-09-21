@@ -1,8 +1,8 @@
 # xmr-pay adapter core
 
 The platform-agnostic layer that sits between the [xmr-pay PHP engine](https://github.com/SlowBearDigger/xmr-pay-php)
-and a cart's payment plugin. It holds the logic every Monero adapter repeats — a per-order
-subaddress, a fiat→XMR amount, a `monero:` URI, and a poll-based settlement loop — so a new gateway
+and a cart's payment plugin. It holds the logic every Monero adapter repeats: a per-order
+subaddress, a fiat→XMR amount, a `monero:` URI, and a poll-based settlement loop: so a new gateway
 (HikaShop, VirtueMart, J2Store, …) is just config + checkout UI + a small storage class.
 
 Non-custodial and view-key only: funds go straight to the merchant's wallet, the engine verifies in
@@ -15,7 +15,7 @@ pure PHP against a node of the merchant's choice, and there is no `monero-wallet
 | `Gateway` | Wraps the engine: `subaddressForOrder`, `xmrAmount`, `moneroUri`, `scanRange`, `summarizeMatches`. No platform calls. |
 | `OrderStore` | A four-method storage contract the cart implements against its own order table. |
 | `Settler` | The reusable "scan pending → mark paid" loop. Resumes from a checkpoint, matures confirmations across runs, settles once. |
-| `ArrayOrderStore` | An in-memory reference store — copy its shape, and the fixture the tests drive. |
+| `ArrayOrderStore` | An in-memory reference store: copy its shape, and the fixture the tests drive. |
 
 ## Writing a cart adapter
 
@@ -24,7 +24,7 @@ use XmrPay\Adapter\Gateway;
 use XmrPay\Adapter\Settler;
 
 $g = new Gateway([
-    'address' => $merchantAddress, 'view_key' => $viewKey,   // view key is the only secret
+    'address' => $merchantAddress, 'view_key' => $viewKey,   // protect the view key and node credentials
     'nodes' => [
         ['url' => 'https://node-a:18081', 'auth' => 'digest', 'username' => $nodeUser, 'password' => $nodePassword],
         ['url' => 'https://node-b:18081', 'auth' => 'none'],
@@ -41,8 +41,9 @@ $uri = $g->moneroUri($sub, $amt['xmr'], "Order $orderId");    // QR / wallet dee
 $report = (new Settler($g, new MyCartStore(), ['min_confirmations' => 10]))->run();
 ```
 
-`MyCartStore` implements `OrderStore` — `loadPending`, `saveProgress`, `isSettled`, `markPaid` —
-against the cart's tables. That class plus a checkout screen is the whole adapter.
+`MyCartStore` implements `OrderStore`: `loadPending`, `saveProgress`, `isSettled`, `markPaid` -
+against the cart's tables. `markPaid` must claim the transaction atomically and
+make platform fulfillment idempotent; `isSettled` alone cannot close a race.
 
 `nodes` also accepts the legacy comma-separated URL string. Structured rows support `none`,
 `basic`, and `digest` authentication. Authenticated plain HTTP is blocked unless that row sets
@@ -50,11 +51,12 @@ against the cart's tables. That class plus a checkout screen is the whole adapte
 returns public URL/auth metadata for diagnostics and never returns usernames or passwords.
 
 Custom price feeds must use a public HTTPS endpoint with a public IPv4 address. The adapter rejects
-private or reserved destinations and redirects so price fetching cannot reach services on the host.
+private or reserved destinations and redirects. Custom feeds require cURL with DNS
+pinning support; there is no unpinned stream fallback for them.
 
 ## Tests
 
-Pure PHP, no Composer, no network — a `FakeScanner` stands in for the chain so the real engine logic
+Pure PHP, no Composer, no network: a `FakeScanner` stands in for the chain so the real engine logic
 is exercised against canned blocks.
 
 ```
