@@ -92,4 +92,14 @@ $g = (new Gateway($cfg))->setScanner(new FakeScanner(1010, $pay));
 $rep = (new Settler($g, $store, $opts))->run();
 ok('dedup: an already-credited txid is not counted again', $rep['settled'] === 0, json_encode($rep));
 
+// Recheck immature evidence after an outage longer than the overlap window.
+$store = new ArrayOrderStore([['id' => 1, 'birthday_height' => 1000, 'xmr_amount' => '0.05']]);
+$g = (new Gateway($cfg))->setScanner(new FakeScanner(1004, $pay));
+$settler = new Settler($g, $store, $opts);
+$settler->run();
+$g->setScanner(new FakeScanner(2000, []));
+$rep = $settler->run();
+ok('long outage does not mature an orphaned cached payment', $rep['settled'] === 0 && $store->get(1)['status'] === 'pending');
+ok('long outage rechecks and removes the old match', $store->get(1)['matches'] === []);
+
 done_();

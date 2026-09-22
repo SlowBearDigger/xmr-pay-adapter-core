@@ -56,8 +56,8 @@ pinning support; there is no unpinned stream fallback for them.
 
 ## Tests
 
-Pure PHP, no Composer, no network: a `FakeScanner` stands in for the chain so the real engine logic
-is exercised against canned blocks.
+The standalone checks need no Composer installation. A `FakeScanner` supplies controlled
+chain evidence; transport checks use local HTTP fixtures.
 
 ```
 composer test      # or: php tests/gateway.test.php && php tests/settler.test.php
@@ -66,9 +66,22 @@ composer test      # or: php tests/gateway.test.php && php tests/settler.test.ph
 Requires PHP 7.4+ with the `gmp` and `bcmath` extensions. Point `XMRPAY_ENGINE` at the engine
 checkout if it is not the sibling `../xmr-pay-php`.
 
+For native HikaShop and VirtueMart boundary checks, use a disposable Joomla installation
+with both plugins installed and run
+`XMRPAY_JOOMLA_BOOTSTRAP=/path/to/bootstrap.php php tests/joomla-boundaries.test.php`.
+The bootstrap must initialize administrator services and the database. The test uses
+controlled chain evidence, native order models and a database transaction that is rolled back.
+
+After an outage, settlement rescans the overlap before its saved checkpoint. Custom scan
+budgets must allow that overlap (at least 15 blocks, or minimum confirmations plus five)
+and forward progress. Paid orders remain settled; confirmation depth determines the
+accepted risk of later, deeper reorganizations.
+
 ## Hard rules (inherited from the engine)
 
 - **View key only.** Never accept or store a spend key.
 - **Never log or expose the view key.**
 - **Two or more independent nodes** for real revenue. Settlement requires every configured node to answer and agree on each transaction and its block height. If a node is unavailable or disagrees, confirmation pauses until the nodes agree.
 - **Stagenet first.** Release goods only after the engine confirms a real on-chain payment.
+
+Run `XMRPAY_JOOMLA_BOOTSTRAP=/path/to/bootstrap.php php tests/joomla-concurrency.test.php` only on a disposable Joomla database with InnoDB tables. It uses separate PHP processes, creates temporary orders from the staging fixtures and deletes them afterward. It verifies concurrent cancellation and rollback after a native write failure.
