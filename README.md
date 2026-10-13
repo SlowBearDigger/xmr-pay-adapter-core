@@ -1,12 +1,28 @@
 # xmr-pay adapter core
 
+This checkout pairs with the XMRPay PHP engine's `release/classic-mainnet` branch.
+It requires exact invoice amounts, output identities and persisted height/hash
+checkpoints. The published engine version `0.2.0` does not provide these contracts.
+
 The platform-agnostic layer that sits between the [xmr-pay PHP engine](https://github.com/SlowBearDigger/xmr-pay-php)
 and a cart's payment plugin. It holds the logic every Monero adapter repeats: a per-order
 subaddress, a fiat→XMR amount, a `monero:` URI, and a poll-based settlement loop: so a new gateway
 (HikaShop, VirtueMart, J2Store, …) is just config + checkout UI + a small storage class.
 
 Non-custodial and view-key only: funds go straight to the merchant's wallet, the engine verifies in
-pure PHP against a node of the merchant's choice, and there is no `monero-wallet-rpc` and no daemon.
+pure PHP against a node of the merchant's choice. No wallet RPC or separate payment daemon is
+required; chain reads use the Monero node's HTTP endpoints.
+
+## Native scan diagnostics
+
+`Gateway::checkOrder()` exposes `scan_status`, `scan_complete`, and `node_error`
+separately from its financial `status` and `paid` result. A complete scan with no
+receipts remains unpaid.
+
+`Settler::run()` includes an `orders` map with each order's `settled` and
+`scan_status`. Storage exceptions produce an error report without exposing exception
+text. Invoice amounts must be positive exact decimal strings. The store must serialize
+concurrent settlement and make fulfillment idempotent.
 
 ## What's in here
 
@@ -14,8 +30,9 @@ pure PHP against a node of the merchant's choice, and there is no `monero-wallet
 |-------|------|
 | `Gateway` | Wraps the engine: `subaddressForOrder`, `xmrAmount`, `moneroUri`, `scanRange`, `summarizeMatches`. No platform calls. |
 | `OrderStore` | A four-method storage contract the cart implements against its own order table. |
+| `OutputOrderStore` | Optional atomic output claims for batched transactions and multi-transaction invoices. |
 | `Settler` | The reusable "scan pending → mark paid" loop. Resumes from a checkpoint, matures confirmations across runs, settles once. |
-| `ArrayOrderStore` | An in-memory reference store: copy its shape, and the fixture the tests drive. |
+| `ArrayOrderStore` | An in-memory reference store; production adapters need durable storage. |
 
 ## Writing a cart adapter
 
@@ -42,8 +59,14 @@ $report = (new Settler($g, new MyCartStore(), ['min_confirmations' => 10]))->run
 ```
 
 `MyCartStore` implements `OrderStore`: `loadPending`, `saveProgress`, `isSettled`, `markPaid` -
-against the cart's tables. `markPaid` must claim the transaction atomically and
+against the cart's tables. The legacy `markPaid` must claim the transaction atomically and
 make platform fulfillment idempotent; `isSettled` alone cannot close a race.
+
+For batched payments, implement `OutputOrderStore` with `isOutputSettled` and
+`markPaidFromOutputs`. Claims require independent uniqueness of `(txid, output_index)`
+and `out_key`, written atomically with paid status and fulfillment intent.
+Existing `OrderStore` implementations remain compatible and reserve the entire txid;
+they must opt into the output contract to settle multiple invoices from one transaction.
 
 `nodes` also accepts the legacy comma-separated URL string. Structured rows support `none`,
 `basic`, and `digest` authentication. Authenticated plain HTTP is blocked unless that row sets
@@ -54,23 +77,11 @@ Custom price feeds must use a public HTTPS endpoint with a public IPv4 address. 
 private or reserved destinations and redirects. Custom feeds require cURL with DNS
 pinning support; there is no unpinned stream fallback for them.
 
-## Tests
+## Runtime requirements
 
-The standalone checks need no Composer installation. A `FakeScanner` supplies controlled
-chain evidence; transport checks use local HTTP fixtures.
-
-```
-composer test      # or: php tests/gateway.test.php && php tests/settler.test.php
-```
-
-Requires PHP 7.4+ with the `gmp` and `bcmath` extensions. Point `XMRPAY_ENGINE` at the engine
-checkout if it is not the sibling `../xmr-pay-php`.
-
-For native HikaShop and VirtueMart boundary checks, use a disposable Joomla installation
-with both plugins installed and run
-`XMRPAY_JOOMLA_BOOTSTRAP=/path/to/bootstrap.php php tests/joomla-boundaries.test.php`.
-The bootstrap must initialize administrator services and the database. The test uses
-controlled chain evidence, native order models and a database transaction that is rolled back.
+Requires PHP 7.4+ with the `gmp`, `bcmath` and `mbstring` extensions and the matching
+classic engine branch. Validation suites and integration laboratories are
+maintained separately from this release branch.
 
 After an outage, settlement rescans the overlap before its saved checkpoint. Custom scan
 budgets must allow that overlap (at least 15 blocks, or minimum confirmations plus five)
@@ -83,5 +94,3 @@ accepted risk of later, deeper reorganizations.
 - **Never log or expose the view key.**
 - **Two or more independent nodes** for real revenue. Settlement requires every configured node to answer and agree on each transaction and its block height. If a node is unavailable or disagrees, confirmation pauses until the nodes agree.
 - **Stagenet first.** Release goods only after the engine confirms a real on-chain payment.
-
-Run `XMRPAY_JOOMLA_BOOTSTRAP=/path/to/bootstrap.php php tests/joomla-concurrency.test.php` only on a disposable Joomla database with InnoDB tables. It uses separate PHP processes, creates temporary orders from the staging fixtures and deletes them afterward. It verifies concurrent cancellation and rollback after a native write failure.

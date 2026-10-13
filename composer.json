@@ -12,12 +12,9 @@
         "php": ">=7.4",
         "ext-gmp": "*",
         "ext-bcmath": "*",
-        "slowbeardigger/xmr-pay": "^0.2.0"
+        "slowbeardigger/xmr-pay": "dev-release/classic-mainnet"
     },
     "autoload": {
         "psr-4": { "XmrPay\\Adapter\\": "src/" }
-    },
-    "scripts": {
-        "test": "for t in gateway node-pass-through settler view-security; do echo \"-- $t --\"; php tests/$t.test.php || exit 1; done"
     }
 }
