@@ -74,7 +74,7 @@ class InvoicePolicy
         return array_merge($order, $patch);
     }
 
-    public static function assertPayable(array $order, array $payment): void
+    public static function assertPayable(array $order, array $payment, bool $acceptExpired = false): void
     {
         $expected = Util::xmr_to_pico_exact($order['xmr_amount']);
         if (gmp_cmp($expected, '0') <= 0) {
@@ -86,6 +86,17 @@ class InvoicePolicy
             throw new \RuntimeException('Confirmed payment does not cover the current invoice amount');
         }
         $decision = self::evaluate($order, $payment, $expected, time());
+        if ($acceptExpired) {
+            if (($order['status'] ?? '') !== 'pending' || ($order['scan_complete'] ?? false) !== true
+                || !in_array($order['invoice_status'] ?? '', ['review', 'expired'], true)
+                || ($order['closed_reason'] ?? '') !== 'expired'
+                || $decision['patch']['invoice_status'] !== 'review'
+                || $decision['patch']['closed_reason'] !== 'expired'
+                || !is_int($order['expires_at'] ?? null) || $order['expires_at'] < 1 || $order['expires_at'] > time()) {
+                throw new \RuntimeException('Invoice is not eligible for late payment acceptance');
+            }
+            return;
+        }
         if (!$decision['may_settle']) {
             throw new \RuntimeException('Invoice is not eligible for automatic settlement');
         }

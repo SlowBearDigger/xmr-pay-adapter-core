@@ -68,6 +68,14 @@ and `out_key`, written atomically with paid status and fulfillment intent.
 Existing `OrderStore` implementations remain compatible and reserve the entire txid;
 they must opt into the output contract to settle multiple invoices from one transaction.
 
+`InvoicePolicy::assertPayable($order, $payment, true)` permits explicit acceptance
+of an expired request already marked for review. Automatic settlement keeps the
+default `false`. The calling integration must authorize the staff action, refresh
+the complete canonical scan, verify confirmed outputs and atomically record the
+review reason, actor, output claims and accounting. Never forward a client-supplied
+flag into this argument. Cancelled, invalid, underfunded and incomplete requests
+remain ineligible.
+
 `nodes` also accepts the legacy comma-separated URL string. Structured rows support `none`,
 `basic`, and `digest` authentication. Authenticated plain HTTP is blocked unless that row sets
 `allow_insecure_http` to `true`; use that opt-in only for a trusted private network. `nodeConfig()`
@@ -92,5 +100,5 @@ accepted risk of later, deeper reorganizations.
 
 - **View key only.** Never accept or store a spend key.
 - **Never log or expose the view key.**
-- **Two or more independent nodes** for real revenue. Settlement requires every configured node to answer and agree on each transaction and its block height. If a node is unavailable or disagrees, confirmation pauses until the nodes agree.
+- **Healthy, agreeing nodes.** The default minimum is two distinct endpoints. A single trusted node is supported with `minimum_nodes = 1`; it provides no independent cross-check. Every configured node must answer and agree on the evidence before settlement.
 - **Stagenet first.** Release goods only after the engine confirms a real on-chain payment.
