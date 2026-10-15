@@ -123,6 +123,10 @@ class Settler
         if (($o['scan_complete'] ?? true) === false && isset($o['scan_checkpoint'])) {
             $from = $prevScanned + 1;
         }
+        if (($o['scan_complete'] ?? false) === true && ($o['partial_block'] ?? null) === null
+            && $prevScanned < $tip && ($o['scan_checkpoint']['height'] ?? null) === $prevScanned) {
+            $from = $prevScanned + 1;
+        }
         $accumulated = isset($o['matches']) && is_array($o['matches']) ? $o['matches'] : [];
         foreach ($accumulated as $match) {
             if (!empty($match['locked']) && !isset($match['unlock_time'])) {

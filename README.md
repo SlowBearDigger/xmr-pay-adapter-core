@@ -91,10 +91,11 @@ Requires PHP 7.4+ with the `gmp`, `bcmath` and `mbstring` extensions and the mat
 classic engine branch. Validation suites and integration laboratories are
 maintained separately from this release branch.
 
-After an outage, settlement rescans the overlap before its saved checkpoint. Custom scan
-budgets must allow that overlap (at least 15 blocks, or minimum confirmations plus five)
-and forward progress. Paid orders remain settled; confirmation depth determines the
-accepted risk of later, deeper reorganizations.
+Completed scans with a matching checkpoint resume at the following block. The scanner
+validates that checkpoint before and after reading new blocks; a changed branch clears
+the saved evidence for rescanning. Legacy progress can still require a broader rescan.
+Paid orders remain settled; confirmation depth determines the accepted risk of later,
+deeper reorganizations.
 
 ## Hard rules (inherited from the engine)
 
