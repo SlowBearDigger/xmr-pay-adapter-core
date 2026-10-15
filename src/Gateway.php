@@ -185,6 +185,12 @@ class Gateway
         ], $opts));
     }
 
+    /** Addresses must be issued requests belonging to this configured wallet. */
+    public function scanBatchRange(array $addresses, int $from, int $to, array $opts = []): array
+    {
+        return $this->scanner()->scan_many($addresses, $this->cfg['view_key'], $from, $to, $opts);
+    }
+
     public function summarizeMatches(array $matches, string $expectedXmr, int $tip, int $minConf): array
     {
         $matches = $this->refreshMatches($matches, $tip);

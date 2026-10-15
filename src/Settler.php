@@ -79,6 +79,115 @@ class Settler
         return $report;
     }
 
+    /** Share detection for at most 25 requests from the configured wallet. */
+    public function settleBatch(array $orders, ?callable $beforeScan = null): array
+    {
+        if (count($orders) > 25 || count(array_unique(array_column($orders, 'id'))) !== count($orders)) {
+            throw new \InvalidArgumentException('A scan batch requires at most 25 distinct orders.');
+        }
+        $report = ['checked' => 0, 'settled' => 0, 'status' => 'ok', 'orders' => []];
+        if (!$orders) {
+            return $report;
+        }
+        if (!$this->g->cryptoReady()) {
+            $report['status'] = 'crypto-missing';
+            return $report;
+        }
+        $p = $this->params();
+        $deadline = hrtime(true) / 1e9 + max(0, $p['time_budget']);
+        $tip = $this->g->scanner()->tip_height();
+        if ($tip === null) {
+            $report['status'] = 'node-error';
+            return $report;
+        }
+
+        $groups = [];
+        $requests = [];
+        foreach ($orders as $order) {
+            $id = (int) $order['id'];
+            try {
+                $request = $this->prepareScan($order, $tip, $p);
+                $requests[$id] = $request;
+                $partial = $request['options']['partial_block'] ?? null;
+                if (is_array($partial)) {
+                    unset($partial['identity'], $partial['matches']);
+                    ksort($partial);
+                }
+                $key = isset($request['result']) ? 'order:' . $id : hash('sha256', json_encode([
+                    $request['from'], $request['options']['checkpoint'] ?? null, $partial
+                ], JSON_THROW_ON_ERROR));
+            } catch (\Throwable $error) {
+                $requests[$id] = ['result' => ['settled' => false, 'scan_status' => 'error']];
+                $key = 'order:' . $id;
+            }
+            $groups[$key][] = $order;
+        }
+
+        foreach ($groups as $group) {
+            if (hrtime(true) / 1e9 >= $deadline) {
+                break;
+            }
+            $groupFailed = false;
+            try {
+                if ($beforeScan !== null) {
+                    $beforeScan($group);
+                }
+                $first = $requests[(int) $group[0]['id']];
+                $results = [];
+                if (!isset($first['result'])) {
+                    $addresses = [];
+                    $options = $first['options'];
+                    unset($options['partial_block']);
+                    foreach ($group as $order) {
+                        $id = (int) $order['id'];
+                        if (!is_string($order['address'] ?? null) || $order['address'] === '') {
+                            throw new \InvalidArgumentException('A scan batch requires issued payment addresses.');
+                        }
+                        $addresses[$id] = $order['address'];
+                        $options['restore_height'] = min($options['restore_height'], $requests[$id]['birthday']);
+                        if (isset($requests[$id]['options']['partial_block'])) {
+                            $options['partial_blocks'][$id] = $requests[$id]['options']['partial_block'];
+                        }
+                    }
+                    $options['time_budget'] = $deadline - hrtime(true) / 1e9;
+                    if ($options['time_budget'] <= 0) {
+                        break;
+                    }
+                    $results = $this->g->scanBatchRange($addresses, $first['from'], $tip - 1, $options);
+                }
+            } catch (\Throwable $error) {
+                $groupFailed = true;
+                $results = [];
+            }
+            foreach ($group as $order) {
+                $id = (int) $order['id'];
+                try {
+                    if ($groupFailed) {
+                        $result = ['settled' => false, 'scan_status' => 'error'];
+                    } elseif (isset($requests[$id]['result'])) {
+                        if (isset($requests[$id]['patch'])) {
+                            $this->store->saveProgress($id, $requests[$id]['patch']);
+                        }
+                        $result = $requests[$id]['result'];
+                    } elseif (isset($results[$id])) {
+                        $result = $this->applyScan($order, $tip, $p, $requests[$id], $results[$id]);
+                    } else {
+                        $result = ['settled' => false, 'scan_status' => 'error'];
+                    }
+                } catch (\Throwable $error) {
+                    $result = ['settled' => false, 'scan_status' => 'error'];
+                }
+                $report['checked']++;
+                $report['orders'][$id] = $result;
+                $report['settled'] += $result['settled'] ? 1 : 0;
+                if ($result['scan_status'] === 'error') {
+                    $report['status'] = 'error';
+                }
+            }
+        }
+        return $report;
+    }
+
     private function params(): array
     {
 
@@ -95,23 +204,38 @@ class Settler
 
     private function step(array $o, int $tip, array $p): array
     {
-        $id = (int) $o['id'];
+        $request = $this->prepareScan($o, $tip, $p);
+        if (isset($request['result'])) {
+            if (isset($request['patch'])) {
+                $this->store->saveProgress((int) $o['id'], $request['patch']);
+            }
+            return $request['result'];
+        }
+        try {
+            $result = $this->g->scanRange((int) $o['id'], $request['from'], $tip - 1, $request['options']);
+        } catch (\Throwable $error) {
+            return ['settled' => false, 'scan_status' => 'error'];
+        }
+        return $this->applyScan($o, $tip, $p, $request, $result);
+    }
 
+    private function prepareScan(array $o, int $tip, array $p): array
+    {
         $expected = $o['xmr_amount'] ?? '';
         try {
             $expectedAtomic = Util::xmr_to_pico_exact($expected);
         } catch (\InvalidArgumentException $error) {
-            return ['settled' => false, 'scan_status' => 'invalid-amount'];
+            return ['result' => ['settled' => false, 'scan_status' => 'invalid-amount']];
         }
         if (gmp_cmp($expectedAtomic, '0') <= 0) {
-            return ['settled' => false, 'scan_status' => 'invalid-amount'];
+            return ['result' => ['settled' => false, 'scan_status' => 'invalid-amount']];
         }
 
         $birthday = (int) ($o['birthday_height'] ?? 0);
         if ($birthday <= 0) {
 
-            $this->store->saveProgress($id, ['birthday_height' => max(1, $tip - $p['lookback'])]);
-            return ['settled' => false, 'scan_status' => 'waiting-birthday'];
+            return ['patch' => ['birthday_height' => max(1, $tip - $p['lookback'])],
+                'result' => ['settled' => false, 'scan_status' => 'waiting-birthday']];
         }
 
         $prevScanned = (int) ($o['scanned_to'] ?? 0);
@@ -148,12 +272,17 @@ class Settler
             $scanOptions['partial_block'] = $o['partial_block'];
         }
 
-        try {
-            $res = $this->g->scanRange($id, $from, $tip - 1, $scanOptions);
-        } catch (\Throwable $e) {
-            return ['settled' => false, 'scan_status' => 'error'];
-        }
+        return ['from' => $from, 'options' => $scanOptions, 'birthday' => $birthday,
+            'accumulated' => $accumulated, 'expected_atomic' => $expectedAtomic];
+    }
 
+    private function applyScan(array $o, int $tip, array $p, array $request, array $res): array
+    {
+        $id = (int) $o['id'];
+        $from = $request['from'];
+        $birthday = $request['birthday'];
+        $accumulated = $request['accumulated'];
+        $expectedAtomic = $request['expected_atomic'];
         $scanStatus = $res['scan_status'] ?? (Gateway::scanComplete($res, $tip) ? 'complete' : 'incomplete');
 
         if (!empty($res['checkpoint_error'])) {
