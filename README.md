@@ -1,8 +1,8 @@
 # xmr-pay adapter core
 
-This checkout pairs with the XMRPay PHP engine's `release/classic-mainnet` branch.
+This release pairs with the XMRPay PHP engine `^0.2.0`.
 It requires exact invoice amounts, output identities and persisted height/hash
-checkpoints. The published engine version `0.2.0` does not provide these contracts.
+checkpoints supplied by that tagged engine release.
 
 The platform-agnostic layer that sits between the [xmr-pay PHP engine](https://github.com/SlowBearDigger/xmr-pay-php)
 and a cart's payment plugin. It holds the logic every Monero adapter repeats: a per-order
@@ -12,6 +12,16 @@ subaddress, a fiat→XMR amount, a `monero:` URI, and a poll-based settlement lo
 Non-custodial and view-key only: funds go straight to the merchant's wallet, the engine verifies in
 pure PHP against a node of the merchant's choice. No wallet RPC or separate payment daemon is
 required; chain reads use the Monero node's HTTP endpoints.
+
+## Install
+
+The cart packages bundle this library. For a separate Composer application, add
+its GitHub VCS repository, then require the tagged version:
+
+```sh
+composer config repositories.xmrpay-adapter-core vcs https://github.com/SlowBearDigger/xmr-pay-adapter-core
+composer require 'slowbeardigger/xmr-pay-adapter-core:^0.2.0'
+```
 
 ## Native scan diagnostics
 
@@ -88,8 +98,8 @@ pinning support; there is no unpinned stream fallback for them.
 ## Runtime requirements
 
 Requires PHP 7.4+ with the `gmp`, `bcmath` and `mbstring` extensions and the matching
-classic engine branch. Validation suites and integration laboratories are
-maintained separately from this release branch.
+PHP engine `^0.2.0`. Validation suites and integration laboratories are
+maintained separately from the runtime package.
 
 Completed scans with a matching checkpoint resume at the following block. The scanner
 validates that checkpoint before and after reading new blocks; a changed branch clears
@@ -101,5 +111,5 @@ deeper reorganizations.
 
 - **View key only.** Never accept or store a spend key.
 - **Never log or expose the view key.**
-- **Healthy, agreeing nodes.** The default minimum is two distinct endpoints. A single trusted node is supported with `minimum_nodes = 1`; it provides no independent cross-check. Every configured node must answer and agree on the evidence before settlement.
+- **Healthy, agreeing nodes.** The default `minimum_nodes = 1` accepts a single trusted endpoint and provides no independent cross-check. Set `minimum_nodes = 2` when requiring distinct endpoints. Every configured node must answer and agree on the evidence before settlement.
 - **Stagenet first.** Release goods only after the engine confirms a real on-chain payment.
