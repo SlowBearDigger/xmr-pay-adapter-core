@@ -67,6 +67,7 @@ $locked    = ((string) $xmr !== '');
         Nothing has been charged. Please refresh this page in a moment, or contact the store and we'll send you a
         payment link.</div>
     <?php else : ?>
+      <div class="xmrpay-pay__instructions"<?php echo !empty($pollUrl) ? ' hidden' : ''; ?>>
       <p class="xmrpay-pay__sub">Scan the code or copy the address into your wallet.</p>
 
       <?php if ($err) : ?>
@@ -90,6 +91,8 @@ $locked    = ((string) $xmr !== '');
       <?php if (!empty($uri)) : ?>
         <a class="xmrpay-pay__open" href="<?php echo htmlspecialchars($uri); ?>">Open in a Monero wallet</a>
       <?php endif; ?>
+
+      </div>
 
       <div class="xmrpay-pay__status" id="xmrpay-status" role="status" aria-live="polite"><span class="xmrpay-pay__dot" aria-hidden="true"></span> Waiting for your payment&hellip;</div>
       <p class="xmrpay-pay__hint">This page updates automatically. Keep it open until payment is confirmed.</p>
@@ -146,7 +149,7 @@ $locked    = ((string) $xmr !== '');
   var url=<?php echo json_encode($pollUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, ret=<?php echo json_encode($returnUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, done=false, errs=0, warns=0;
   var originalUri=<?php echo json_encode($uri, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, originalAmount=<?php echo json_encode((string) $xmr, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   var wallet=document.querySelector('.xmrpay-pay__open'), amount=document.querySelector('.xmrpay-pay__amount');
-  var instructions=document.querySelectorAll('.xmrpay-pay__sub,.xmrpay-pay__amount,.xmrpay-pay__fiat,.xmrpay-pay__qr,.xmrpay-pay__label,.xmrpay-pay__addr,.xmrpay-pay__open');
+  var instructions=document.querySelectorAll('.xmrpay-pay__instructions,.xmrpay-pay__sub,.xmrpay-pay__amount,.xmrpay-pay__fiat,.xmrpay-pay__qr,.xmrpay-pay__label,.xmrpay-pay__addr,.xmrpay-pay__open');
   var dot='<span class="xmrpay-pay__dot" aria-hidden="true"></span> ';
   function set(cls,msg){ var s=document.getElementById('xmrpay-status'); if(s){ s.className='xmrpay-pay__status'+(cls?' '+cls:''); s.innerHTML=dot; s.appendChild(document.createTextNode(msg)); } }
   function showInstructions(visible){
