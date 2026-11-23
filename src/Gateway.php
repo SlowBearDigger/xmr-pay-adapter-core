@@ -114,6 +114,24 @@ class Gateway
         ];
     }
 
+    /** Offer a top-up only when every observed contribution is confirmed. */
+    public static function paymentFeedback(string $expectedXmr, ?string $receivedPico, ?string $seenPico): array
+    {
+        foreach ([$receivedPico, $seenPico] as $amount) {
+            if ($amount === null || !preg_match('/^(0|[1-9][0-9]*)$/D', $amount)) {
+                return ['status' => 'processing'];
+            }
+        }
+        if ($receivedPico !== $seenPico) {
+            return ['status' => 'processing'];
+        }
+        if ($seenPico === '0') {
+            return ['status' => 'pending'];
+        }
+        $partial = self::partialFeedback($expectedXmr, $receivedPico);
+        return $partial === null ? ['status' => 'processing'] : array_merge(['status' => 'partial'], $partial);
+    }
+
     public static function fetchRate(string $currency): float
     {
         $vs    = strtolower($currency);

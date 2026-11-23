@@ -72,6 +72,14 @@ $report = (new Settler($g, new MyCartStore(), ['min_confirmations' => 10]))->run
 against the cart's tables. The legacy `markPaid` must claim the transaction atomically and
 make platform fulfillment idempotent; `isSettled` alone cannot close a race.
 
+`saveProgress` must retain `scan_checkpoint`, `partial_block`, `scan_complete` and
+the invoice policy fields, including explicit `null` resets. `received_pico` counts
+confirmed funds; `seen_pico` also includes observed contributions awaiting confirmation.
+For a complete scan of an unpaid order, `Gateway::paymentFeedback($expectedXmr,
+$receivedPico, $seenPico)` returns `pending`, `partial` with an exact remaining
+amount, or `processing` without payment instructions. Incomplete or failed scans
+must withhold payment instructions until verification succeeds.
+
 For batched payments, implement `OutputOrderStore` with `isOutputSettled` and
 `markPaidFromOutputs`. Claims require independent uniqueness of `(txid, output_index)`
 and `out_key`, written atomically with paid status and fulfillment intent.

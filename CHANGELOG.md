@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-11-23
+
+- Update the checkout amount, wallet link and QR code to the confirmed remaining balance after a partial payment.
+- Keep payment instructions hidden while observed funds await confirmation or payment verification is unavailable.
+
 ## [0.2.0] - 2026-11-21
 
 - Recheck the overlap before the saved checkpoint after an outage so orphaned cached matches cannot mature into a payment.

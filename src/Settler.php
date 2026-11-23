@@ -296,6 +296,7 @@ class Settler
                 'partial_block' => null,
                 'scan_complete' => false,
                 'received_pico' => '0',
+                'seen_pico' => '0',
                 'funded_at' => null,
                 'funded_amount_atomic' => null,
             ]);
@@ -316,6 +317,7 @@ class Settler
             'partial_block' => $res['partial_block'] ?? null,
             'scan_complete' => $complete,
             'received_pico' => $verdict['received_pico'] ?? '0',
+            'seen_pico' => $verdict['seen_pico'] ?? '0',
         ], $invoice['patch']));
 
         if (!$invoice['may_settle']) {
