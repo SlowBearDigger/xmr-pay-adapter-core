@@ -4,6 +4,7 @@
 
 - Update the checkout amount, wallet link and QR code to the confirmed remaining balance after a partial payment.
 - Keep payment instructions hidden while observed funds await confirmation or payment verification is unavailable.
+- Avoid overlapping status requests when payment verification takes longer than the polling interval.
 
 ## [0.2.0] - 2026-11-21
 

@@ -146,7 +146,7 @@ $locked    = ((string) $xmr !== '');
   }
   draw();
   <?php if (!empty($pollUrl)) : ?>
-  var url=<?php echo json_encode($pollUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, ret=<?php echo json_encode($returnUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, done=false, errs=0, warns=0;
+  var url=<?php echo json_encode($pollUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, ret=<?php echo json_encode($returnUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, done=false, inFlight=false, errs=0, warns=0;
   var originalUri=<?php echo json_encode($uri, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, originalAmount=<?php echo json_encode((string) $xmr, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   var wallet=document.querySelector('.xmrpay-pay__open'), amount=document.querySelector('.xmrpay-pay__amount');
   var instructions=document.querySelectorAll('.xmrpay-pay__instructions,.xmrpay-pay__sub,.xmrpay-pay__amount,.xmrpay-pay__fiat,.xmrpay-pay__qr,.xmrpay-pay__label,.xmrpay-pay__addr,.xmrpay-pay__open');
@@ -168,7 +168,8 @@ $locked    = ((string) $xmr !== '');
     return true;
   }
   function poll(){
-    if(done) return;
+    if(done||inFlight) return;
+    inFlight=true;
     fetch(url,{credentials:'same-origin',headers:{'Accept':'application/json'}})
       .then(function(r){return r.json();})
       .then(function(d){
@@ -200,7 +201,7 @@ $locked    = ((string) $xmr !== '');
       }).catch(function(){
         showInstructions(false); set('warn', 'Payment status is unavailable. Please wait before sending another payment.');
         if(++errs>=20){ done=true; }
-      });  // give up quietly after ~4 min of network errors
+      }).then(function(){ inFlight=false; });  // give up quietly after ~4 min of network errors
   }
   showInstructions(false); set('', 'Checking payment status…');
   setInterval(poll,12000); poll();
