@@ -76,7 +76,7 @@ $locked    = ((string) $xmr !== '');
       <?php endif; ?>
 
       <div class="xmrpay-pay__amount"><?php echo htmlspecialchars((string) $xmr); ?><span>XMR</span></div>
-      <?php if ((string) $fiat !== '') : ?><div class="xmrpay-pay__fiat">&asymp; <?php echo htmlspecialchars(strip_tags((string) $fiat), ENT_QUOTES); ?></div><?php endif; ?>
+      <?php if ((string) $fiat !== '') : ?><div class="xmrpay-pay__fiat">Order total: <?php echo htmlspecialchars(strip_tags((string) $fiat), ENT_QUOTES); ?></div><?php endif; ?>
 
       <?php if (!empty($uri)) : ?>
         <div class="xmrpay-pay__qr"><div id="xmrpay-qr" role="img" aria-label="Monero payment QR code" data-uri="<?php echo htmlspecialchars($uri); ?>"></div></div>
